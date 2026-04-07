@@ -1,0 +1,69 @@
+{% if error %}
+<!-- 錯誤訊息 -->
+<div class="alert alert-danger shadow-sm">
+  <div class="d-flex align-items-start gap-2">
+    <i class="bi bi-exclamation-triangle-fill fs-5 mt-1"></i>
+    <div>
+      <strong>查詢失敗</strong>
+      <pre class="mb-0 mt-2 small" style="white-space:pre-wrap">{{ error }}</pre>
+      {% if sql %}
+      <hr class="my-2">
+      <small class="text-muted">生成的 SQL：</small>
+      <pre class="mb-0 small sql-pre mt-1">{{ sql }}</pre>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% else %}
+<!-- 生成的 SQL -->
+<div class="card shadow-sm mb-3">
+  <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
+    <span><i class="bi bi-code-slash me-1"></i>生成的 SQL</span>
+    <button class="btn btn-sm btn-outline-light"
+            onclick="navigator.clipboard.writeText(document.getElementById('gen-sql').textContent).then(()=>this.innerHTML='<i class=\'bi bi-check\'></i> 已複製')">
+      <i class="bi bi-clipboard"></i> 複製
+    </button>
+  </div>
+  <div class="card-body p-0">
+    <pre id="gen-sql" class="sql-pre m-0">{{ sql }}</pre>
+  </div>
+</div>
+
+<!-- 查詢結果 -->
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center py-2">
+    <span><i class="bi bi-table me-1"></i>查詢結果</span>
+    <span class="badge bg-primary rounded-pill">共 {{ row_count }} 筆</span>
+  </div>
+
+  {% if rows %}
+  <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+    <table class="table table-sm table-striped table-hover align-middle mb-0">
+      <thead class="table-dark sticky-top">
+        <tr>
+          <th class="text-center text-muted" style="width:3rem">#</th>
+          {% for col in columns %}
+          <th>{{ col }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="text-center text-muted small">{{ loop.index }}</td>
+          {% for cell in row %}
+          <td>{{ cell if cell is not none else '<span class="text-muted">—</span>' | safe }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body text-center text-muted py-4">
+    <i class="bi bi-inbox fs-2 d-block mb-2"></i>查無資料
+  </div>
+  {% endif %}
+</div>
+{% endif %}

@@ -1,0 +1,39 @@
+# 環境變數（含密碼，絕對不 commit）
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual env
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Schema cache（執行時自動產生）
+schema_cache.json
+schema_cache.db
+
+# Claude Code 本機設定
+.claude/
+
+# Logs
+*.log
