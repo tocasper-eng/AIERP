@@ -32,7 +32,7 @@ def _load_from_db() -> dict[str, list[dict]]:
             FROM INFORMATION_SCHEMA.COLUMNS c
             JOIN INFORMATION_SCHEMA.TABLES t
                 ON c.TABLE_NAME = t.TABLE_NAME
-                AND t.TABLE_TYPE = 'BASE TABLE'
+                AND t.TABLE_TYPE IN ('BASE TABLE', 'VIEW')
             LEFT JOIN sys.extended_properties ep
                 ON ep.major_id = OBJECT_ID(c.TABLE_NAME)
                 AND ep.minor_id = c.ORDINAL_POSITION
