@@ -16,30 +16,24 @@
 </div>
 
 {% else %}
-<!-- 生成的 SQL -->
-<div class="card shadow-sm mb-3">
-  <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
-    <span><i class="bi bi-code-slash me-1"></i>生成的 SQL</span>
-    <button class="btn btn-sm btn-outline-light"
-            onclick="navigator.clipboard.writeText(document.getElementById('gen-sql').textContent).then(()=>this.innerHTML='<i class=\'bi bi-check\'></i> 已複製')">
-      <i class="bi bi-clipboard"></i> 複製
-    </button>
-  </div>
-  <div class="card-body p-0">
-    <pre id="gen-sql" class="sql-pre m-0">{{ sql }}</pre>
-  </div>
-</div>
 
-<!-- 查詢結果 -->
-<div class="card shadow-sm">
+<!-- 區塊 3：查詢結果 -->
+<div class="card shadow-sm mb-3">
   <div class="card-header d-flex justify-content-between align-items-center py-2">
     <span><i class="bi bi-table me-1"></i>查詢結果</span>
-    <span class="badge bg-primary rounded-pill">共 {{ row_count }} 筆</span>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-primary rounded-pill">共 {{ row_count }} 筆</span>
+      {% if rows %}
+      <button class="btn btn-sm btn-success" onclick="exportToExcel()">
+        <i class="bi bi-file-earmark-excel me-1"></i>匯出 Excel
+      </button>
+      {% endif %}
+    </div>
   </div>
 
   {% if rows %}
   <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
-    <table class="table table-sm table-striped table-hover align-middle mb-0">
+    <table id="result-table" class="table table-sm table-striped table-hover align-middle mb-0">
       <thead class="table-dark sticky-top">
         <tr>
           <th class="text-center text-muted" style="width:3rem">#</th>
@@ -53,11 +47,28 @@
         <tr>
           <td class="text-center text-muted small">{{ loop.index }}</td>
           {% for cell in row %}
-          <td>{{ cell if cell is not none else '<span class="text-muted">—</span>' | safe }}</td>
+          <td{% if loop.index0 in numeric_cols %} class="text-end"{% endif %}>
+            {{ cell if cell is not none else '<span class="text-muted">—</span>' | safe }}
+          </td>
           {% endfor %}
         </tr>
         {% endfor %}
       </tbody>
+      {% if numeric_cols %}
+      <tfoot class="table-warning fw-bold">
+        <tr>
+          <td class="text-center text-muted small">合計</td>
+          {% for col in columns %}
+          {% set col_idx = loop.index0 %}
+          <td{% if col_idx in numeric_cols %} class="text-end"{% endif %}>
+            {% if col_idx in numeric_cols %}
+              {{ "{:,.2f}".format(numeric_cols[col_idx]) }}
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+      </tfoot>
+      {% endif %}
     </table>
   </div>
   {% else %}
@@ -66,4 +77,40 @@
   </div>
   {% endif %}
 </div>
+
+<!-- 區塊 4：生成的 SQL -->
+<div class="card shadow-sm mb-3">
+  <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
+    <span><i class="bi bi-code-slash me-1"></i>生成的 SQL</span>
+    <button class="btn btn-sm btn-outline-light"
+            onclick="navigator.clipboard.writeText(document.getElementById('gen-sql').textContent).then(()=>this.innerHTML='<i class=\'bi bi-check\'></i> 已複製')">
+      <i class="bi bi-clipboard"></i> 複製
+    </button>
+  </div>
+  <div class="card-body p-0">
+    <pre id="gen-sql" class="sql-pre m-0">{{ sql }}</pre>
+  </div>
+</div>
+
+<script>
+function exportToExcel() {
+  const table = document.getElementById('result-table');
+  let csv = '\uFEFF'; // UTF-8 BOM，讓 Excel 正確顯示中文
+  for (const row of table.rows) {
+    // 跳過第一欄（序號 #）
+    const cells = Array.from(row.cells).slice(1).map(cell => {
+      const text = cell.textContent.trim().replace(/"/g, '""');
+      return '"' + text + '"';
+    });
+    csv += cells.join(',') + '\n';
+  }
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'query_result.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
 {% endif %}
