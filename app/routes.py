@@ -14,8 +14,9 @@ templates = Jinja2Templates(directory="templates")
 async def index(request: Request):
     tables = get_all_table_names()
     return templates.TemplateResponse(
+        request,
         "index.html",
-        {"request": request, "tables": tables, "table_count": len(tables)},
+        {"tables": tables, "table_count": len(tables)},
     )
 
 
@@ -33,9 +34,9 @@ async def query(request: Request, question: str = Form(...)):
         error = str(e)
 
     return templates.TemplateResponse(
+        request,
         "result.html",
         {
-            "request": request,
             "question": question,
             "sql": sql,
             "columns": columns,
