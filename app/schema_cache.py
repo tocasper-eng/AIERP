@@ -3,7 +3,7 @@ import os
 from app.database import get_connection
 
 CACHE_FILE = "schema_cache.json"
-ALIAS_FILE = "table_aliases.json"
+ALIAS_FILE = "table_aliases.json"  # 可選，僅用於補充額外關鍵字
 
 _schema: dict[str, list[dict]] = {}
 _aliases: dict = {}
@@ -17,7 +17,7 @@ def _load_aliases() -> dict:
 
 
 def _load_from_db() -> dict[str, list[dict]]:
-    """從資料庫讀取所有資料表的欄位定義。"""
+    """從資料庫讀取所有資料表與 View 的欄位定義。"""
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -65,11 +65,11 @@ async def init_schema_cache() -> None:
     if os.path.exists(CACHE_FILE):
         with open(CACHE_FILE, encoding="utf-8") as f:
             _schema = json.load(f)
-        print(f"[Schema] 從快取載入 {len(_schema)} 個資料表")
+        print(f"[Schema] 從快取載入 {len(_schema)} 個資料表/View")
         return
     _schema = _load_from_db()
     _save_cache()
-    print(f"[Schema] 從資料庫建立快取，共 {len(_schema)} 個資料表")
+    print(f"[Schema] 從資料庫建立快取，共 {len(_schema)} 個資料表/View")
 
 
 def refresh_schema_cache() -> int:
@@ -91,7 +91,7 @@ def get_all_table_names() -> list[str]:
 
 
 def get_schema_for_prompt(question: str) -> str:
-    """根據問題關鍵字找出相關資料表，回傳 schema 文字供 prompt 注入。"""
+    """根據問題找出相關資料表/View，回傳 schema 文字供 prompt 注入。"""
     if not _schema:
         return "（Schema 尚未載入）"
 
@@ -103,10 +103,17 @@ def get_schema_for_prompt(question: str) -> str:
         for c in cols:
             desc = f"  --{c['description']}" if c.get("description") else ""
             col_parts.append(f"    {c['column']} ({c['type']}){desc}")
-        table_desc = _aliases.get(table, {}).get("description", "")
-        header = f"資料表 {table}（{table_desc}）:" if table_desc else f"資料表 {table}:"
-        lines.append(header + "\n" + "\n".join(col_parts))
+        lines.append(f"資料表/View：{table}\n" + "\n".join(col_parts))
     return "\n\n".join(lines)
+
+
+def _name_substrings(name: str, min_len: int = 2, max_len: int = 6) -> list[str]:
+    """萃取名稱中所有長度在 min_len~max_len 之間的子字串（用於中文命名比對）。"""
+    result = []
+    for length in range(min_len, min(len(name) + 1, max_len + 1)):
+        for i in range(len(name) - length + 1):
+            result.append(name[i:i + length])
+    return result
 
 
 def _find_relevant_tables(question: str) -> list[str]:
@@ -115,28 +122,30 @@ def _find_relevant_tables(question: str) -> list[str]:
     for table, cols in _schema.items():
         score = 0
 
-        # 英文資料表名稱命中
-        if table.lower() in question.lower():
-            score += 15
+        # 完整名稱命中（最高分）
+        if table in question:
+            score += 20
 
-        # alias 中文描述命中
-        alias_info = _aliases.get(table, {})
-        table_desc = alias_info.get("description", "")
-        if table_desc and table_desc in question:
-            score += 10
+        # 名稱子字串命中（適用中文 View 名如「科目餘額表」）
+        for substr in _name_substrings(table):
+            if substr in question:
+                score += len(substr)  # 越長的子串得分越高
 
-        # alias 關鍵字命中
-        for kw in alias_info.get("keywords", []):
+        # 欄位名稱命中（中文欄位直接比對）
+        for c in cols:
+            col_name = c["column"]
+            if col_name in question:
+                score += 5
+            else:
+                # 欄位名稱子字串
+                for substr in _name_substrings(col_name):
+                    if substr in question:
+                        score += len(substr) - 1
+
+        # 可選：table_aliases.json 補充關鍵字
+        for kw in _aliases.get(table, {}).get("keywords", []):
             if kw in question:
                 score += 8
-
-        # 欄位名稱命中
-        for c in cols:
-            if c["column"].lower() in question.lower():
-                score += 3
-            desc = c.get("description", "")
-            if desc and any(kw in question for kw in desc.split()):
-                score += 2
 
         if score > 0:
             scored.append((score, table))
@@ -145,5 +154,5 @@ def _find_relevant_tables(question: str) -> list[str]:
         scored.sort(reverse=True)
         return [t for _, t in scored[:15]]
 
-    # 無關鍵字命中時回傳全部（最多 30 個）
+    # 無命中時回傳全部（最多 30 個）
     return sorted(_schema.keys())[:30]
