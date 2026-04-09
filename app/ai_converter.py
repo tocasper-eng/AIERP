@@ -10,7 +10,7 @@ _SYSTEM_PROMPT = """\
 【規則】
 1. 只輸出純 SQL，不加任何說明文字、不用 ```sql``` 包裹
 2. 只允許 SELECT（唯讀），禁止 INSERT / UPDATE / DELETE / DROP / ALTER
-3. 使用 TOP N 限制筆數（預設 TOP 100），除非用戶明確要求全部
+3. 不主動加 TOP N 限制，除非用戶明確要求筆數限制
 4. 使用繁體中文別名（AS）讓結果更易讀，例如 accino AS 會計科目
 5. 日期格式：YYYY-MM-DD
 6. 若有計算欄位請加別名
